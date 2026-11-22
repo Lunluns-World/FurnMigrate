@@ -154,7 +154,6 @@ cd plugins/Oraxen && find items pack/assets pack/uploads mechanics.yml -type f -
 | 弩（Crossbow） | 純裝飾，不能射箭 |
 | 擁有者 | Oraxen 傢俱不記錄擁有者，要靠領地外掛保護 |
 | 沒放置過的 13 種樣式 | 沒有做 Oraxen 傢俱（AdventCalender、BearTrap、Billboard、Camera、CandyCane、Catapult、ChristmasTree、FireworkLauncher、Flag、GraveStone、Guillotine、Log、SleepingBag）。它們的舊物品由 FurnGuard 擋住 |
-| Oraxen 的警告 | 啟動時的「invalid texture-path minecraft:block/...」可以忽略：模型用的是原版貼圖，Oraxen 只檢查自己資源包裡的貼圖 |
 | hitbox | 傢俱的 hitbox 都以本體為中心（Oraxen 偏移 hitbox 的旋轉方向和 barrier 相反）；比較大的傢俱靠 barrier 擋人 |
 
 ## 本機測試（開發用）

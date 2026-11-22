@@ -91,6 +91,7 @@ object SeatingAndTables {
     }
 
     private val trunk = design("Trunk") {
+        displayName("&c橫躺可以坐的長原木")   // the model says 座
         handles("#TO", "座位標記；3 個座位保留")
         // Reference: log bench lying along −x, x −41..9, z 3..13, height 10; 3 seats.
         tex("bark", "block/oak_log")

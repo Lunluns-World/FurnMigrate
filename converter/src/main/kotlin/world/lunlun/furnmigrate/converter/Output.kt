@@ -26,11 +26,18 @@ object Output {
 
     fun modelJson(res: StyleResult): String = modelJson(res.elements, res.textures)
 
+    /**
+     * `minecraft:block/oak_log_top` → `block/oak_log_top` (same texture for the game). Oraxen's pack check
+     * (PackFileCollector.java:151) accepts vanilla paths only without the namespace, or when the file name
+     * happens to be an item name, so `minecraft:block/oak_log_top` was reported as an invalid texture path.
+     */
+    fun modelTexturePath(id: String): String = id.removePrefix("minecraft:")
+
     fun modelJson(elements: List<OutElement>, textures: Map<String, String>): String {
         val root = JsonObject()
         root.add("textures", JsonObject().apply {
-            textures.forEach { (k, v) -> addProperty(k, v) }
-            textures.values.firstOrNull()?.let { addProperty("particle", it) }
+            textures.forEach { (k, v) -> addProperty(k, modelTexturePath(v)) }
+            textures.values.firstOrNull()?.let { addProperty("particle", modelTexturePath(it)) }
         })
         val els = JsonArray()
         for (e in elements) {

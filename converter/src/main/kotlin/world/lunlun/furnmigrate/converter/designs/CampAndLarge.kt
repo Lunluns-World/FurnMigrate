@@ -61,6 +61,7 @@ object CampAndLarge {
         // The bed (x −32..−16, z 16..48) and the chest (x −48..−32, z 32..48) stay real blocks (mapping keep_blocks):
         // beds can still be slept in and the chest keeps its contents without moving anything.
         handles("real container block", "箱子保留為真實方塊，內容不用搬")
+        displayName("&c帳篷 #2")       // the model says 帳棚
         anchor(3, 0, -1)          // px x −48..−32, z 16..32: middle of the floor, next to the bed and chest
         tex("canvas", "block/white_wool")
         tex("pole", "block/oak_log")

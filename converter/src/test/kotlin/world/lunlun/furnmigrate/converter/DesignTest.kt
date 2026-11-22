@@ -182,4 +182,27 @@ class DesignTest {
         // above the hitbox → no effect
         assertEquals("0,0,0 3,1", avoidKeepBlocks("0,0,0 3,1", listOf(world.lunlun.furnmigrate.common.IVec3(1, 1, 0))))
     }
+
+    @Test
+    fun `model json uses vanilla texture paths Oraxen accepts`() {
+        assertEquals("block/oak_log_top", Output.modelTexturePath("minecraft:block/oak_log_top"))
+        assertEquals("lunworld:dice/x", Output.modelTexturePath("lunworld:dice/x"))
+        val json = Output.modelJson(emptyList(), mapOf("0" to "minecraft:block/cactus_side"))
+        assertTrue("\"block/cactus_side\"" in json && "minecraft:block" !in json, json)
+    }
+
+    @Test
+    fun `a design can fix the item name taken from the model`() {
+        for ((style, name) in listOf("Tent2" to "帳篷 #2", "Trunk" to "橫躺可以坐的長原木")) {
+            val original = StyleResult(
+                model = DModel(style, style, style, "&c錯字", "TOP", emptyList(), emptyList(), false),
+                oraxenId = "dice_" + style.lowercase(), elements = emptyList(), textures = emptyMap(),
+                barriers = emptyList(), seats = emptyList(), lights = emptyList(), hitbox = null,
+                displayScale = 1.0, converted = emptyList(), skipped = emptyList(), angleErrors = emptyList(),
+                unmatchedFunctions = emptyList(), keepBlocks = emptyList(), warnings = emptyList(),
+            )
+            val r = DesignApplier.apply(original, Designs.find(style)!!)
+            assertEquals("<!i><red>$name", Output.itemConfig(r, "lunworld")["itemname"], style)
+        }
+    }
 }

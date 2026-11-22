@@ -33,6 +33,8 @@ class Design(
     val handled: Map<String, String> = emptyMap(),
     /** Canonical cell of the old piece that becomes the Oraxen furniture's block (see MappingEntry.anchor). */
     val anchor: IVec3 = IVec3(0, 0, 0),
+    /** Item name to use instead of the model's displayName (legacy `&` colours), e.g. to fix a typo. */
+    val displayName: String? = null,
 )
 
 /** Oraxen `mechanics.furniture.storage` (type STORAGE). */
@@ -46,6 +48,7 @@ class DesignBuilder(private val style: String) {
     private var storage: StorageSpec? = null
     private val handled = linkedMapOf<String, String>()
     private var anchor = IVec3(0, 0, 0)
+    private var displayName: String? = null
 
     /** Registers a texture under a short key, e.g. `tex("wood", "block/oak_planks")`. */
     fun tex(key: String, id: String) {
@@ -118,7 +121,10 @@ class DesignBuilder(private val style: String) {
      */
     fun anchor(x: Int, y: Int, z: Int) { anchor = IVec3(x, y, z) }
 
-    fun build() = Design(style, textures, elements.toList(), seats, lights, storage, handled, anchor)
+    /** Item name instead of the model's displayName (legacy `&` colours like the models use). */
+    fun displayName(name: String) { displayName = name }
+
+    fun build() = Design(style, textures, elements.toList(), seats, lights, storage, handled, anchor, displayName)
 }
 
 fun design(style: String, block: DesignBuilder.() -> Unit): Design = DesignBuilder(style).apply(block).build()
@@ -206,6 +212,7 @@ object DesignApplier {
             .filter { (marker, _) -> decided.any { it.contains(marker, ignoreCase = true) } }
             .map { (marker, how) -> PartNote(marker, "已決定：$how") }
         return res.copy(
+            model = design.displayName?.let { res.model.copy(displayName = it) } ?: res.model,
             converted = res.converted + decidedNotes,
             unmatchedFunctions = open,
             elements = elements,
