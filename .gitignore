@@ -1,0 +1,22 @@
+# Server data copied from the servers (DB credentials, player data, DiceFurniture's models) and third-party binaries
+FurnitureLib/
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+out/
+build/
+.gradle/
+dumps/
+vanilla/
+
+# local test server
+run/
+run-s1/
+run-s2/
+
+# region files copied from the servers for local testing
+test-regions/
+.op-done
+dist/
+
+# project instructions for the local assistant (server environment details)
+CLAUDE.md

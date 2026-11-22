@@ -1,0 +1,11 @@
+# FurnMigrate settings.
+# The mapping table goes in plugins/FurnMigrate/mapping.yml (copy out/mapping.yml from the converter).
+
+# How many old pieces are replaced per server tick (20 ticks = 1 second).
+objects-per-tick: 2
+
+# Worlds to process. Empty = every loaded world that has DiceFurniture.
+worlds: []
+
+# List barrier blocks in processed chunks that belong to no furniture (only listed, never removed).
+list-orphan-barriers: true

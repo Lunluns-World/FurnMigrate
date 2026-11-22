@@ -1,0 +1,18 @@
+name: FurnMigrate
+version: '${version}'
+main: world.lunlun.furnmigrate.migrator.FurnMigratePlugin
+api-version: '1.21'
+description: Replaces placed DiceFurniture (FurnitureLib) with Oraxen furniture
+depend: [FurnitureLib, Oraxen]
+libraries:
+  - org.jetbrains.kotlin:kotlin-stdlib:${kotlinVersion}
+commands:
+  furnmigrate:
+    description: DiceFurniture → Oraxen migration
+    usage: /furnmigrate <scan|dry-run|run|status|pause|resume|manual|dropitems>
+    permission: furnmigrate.admin
+    aliases: [fmig]
+permissions:
+  furnmigrate.admin:
+    description: Use /furnmigrate
+    default: op

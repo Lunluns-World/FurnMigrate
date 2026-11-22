@@ -1,0 +1,16 @@
+name: FurnTestKit
+version: '${version}'
+main: world.lunlun.furnmigrate.testkit.TestKitPlugin
+api-version: '1.21'
+description: LOCAL TEST ONLY - spawns DiceFurniture and verifies a FurnMigrate run. Never install on a real server.
+depend: [Oraxen]
+softdepend: [FurnitureLib]
+libraries:
+  - org.jetbrains.kotlin:kotlin-stdlib:${kotlinVersion}
+commands:
+  ftk:
+    description: FurnMigrate test kit
+    permission: furntestkit.use
+permissions:
+  furntestkit.use:
+    default: op
