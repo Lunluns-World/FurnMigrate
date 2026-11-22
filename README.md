@@ -11,7 +11,7 @@
 | `migrator` | Paper 外掛 **FurnMigrate**：在伺服器上把已放置的舊傢俱一個一個換成 Oraxen 傢俱 |
 | `testkit` | ⚠️ **只在本機測試用**的外掛 FurnTestKit（`ftk spawn` / `verify` / `audit`）。**不要裝到任何伺服器上** |
 
-另一個 repo **FurnGuard** 會一直留在伺服器上：它阻止舊的 DiceFurniture 物品（其實是原版生怪蛋）被當成生怪蛋使用，並把它們換成新傢俱。
+另一個 repo **[FurnGuard](https://github.com/Lunluns-World/FurnGuard)** 會一直留在伺服器上：它阻止舊的 DiceFurniture 物品（其實是原版生怪蛋）被當成生怪蛋使用，並把它們換成新傢俱。
 
 文件：
 
@@ -89,7 +89,7 @@
   - `migrator/build/libs/FurnMigrate-0.1.0.jar`
   - `out/oraxen/items/dicefurniture.yml`、`out/oraxen/pack/assets/lunworld/`
   - `out/mapping.yml`
-- [ ] FurnGuard 已經建置好，並且在測試伺服器上測過（它的設定、安裝方式見 FurnGuard 的 README）。
+- [ ] FurnGuard 已經建置好，並且在測試伺服器上測過（它的設定、安裝方式見 [FurnGuard 的 README](https://github.com/Lunluns-World/FurnGuard#readme)）。
 - [ ] 公告維護時間。
 
 ### B. Oraxen 設定（共用同一份資源包的每台伺服器都要做，而且**完全一樣**，包括沒有 DiceFurniture 的伺服器）
