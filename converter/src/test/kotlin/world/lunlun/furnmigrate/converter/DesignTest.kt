@@ -107,7 +107,7 @@ class DesignTest {
         val jar = java.io.File("../vanilla/client-1.21.8.jar")
         org.junit.jupiter.api.Assumptions.assumeTrue(jar.isFile, "vanilla jar not present")
         java.util.zip.ZipFile(jar).use { zip ->
-            for (d in Designs.all.values) for ((_, id) in d.textures) {
+            for (d in Designs.all.values + world.lunlun.furnmigrate.converter.designs.NewDesigns.all.map { it.design }) for ((_, id) in d.textures.filterValues { !CustomTextures.isCustom(it) }) {
                 val path = "assets/${id.substringBefore(':')}/textures/${id.substringAfter(':')}.png"
                 assertTrue(zip.getEntry(path) != null, "${d.style}: $id")
             }

@@ -41,6 +41,7 @@ data class StyleResult(
     val storage: StorageSpec? = null,
     /** See MappingEntry.anchor; seats/lights/barriers/elements are already relative to it. */
     val anchor: IVec3 = IVec3(0, 0, 0),
+    val placing: Placing = Placing.FLOOR,
 ) {
     /** For designed models skipped parts and angle errors of the old geometry no longer matter. */
     val maxAngleError: Double get() = if (designed) 0.0 else angleErrors.maxOfOrNull { it.errorDeg } ?: 0.0

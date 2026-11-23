@@ -1,5 +1,7 @@
 package world.lunlun.furnmigrate.converter.designs
 
+import world.lunlun.furnmigrate.common.Axis
+import world.lunlun.furnmigrate.common.Vec3
 import world.lunlun.furnmigrate.converter.FaceDir
 import world.lunlun.furnmigrate.converter.design
 
@@ -146,13 +148,18 @@ object LightsAndDecor {
         tex("pole", "block/white_concrete")
         tex("green", "block/lime_wool")
         tex("white", "block/white_wool")
-        box(4, 0, 4, 12, 2, 12, "base")
-        box(7.5, 2, 7.5, 8.5, 39, 8.5, "pole")
-        box(-4, 32, -4, 20, 33, 20, "green")            // canopy, stepped
-        box(-1, 33, -1, 17, 34.5, 17, "white")
-        box(2, 34.5, 2, 14, 36, 14, "green")
-        box(5, 36, 5, 11, 37.5, 11, "white")
-        box(7, 37.5, 7, 9, 39, 9, "pole")
+        tex("tip", "block/oak_planks")
+        box(3, 0, 3, 13, 1.5, 13, "base")
+        box(5.5, 1.5, 5.5, 10.5, 3, 10.5, "base")
+        box(7.5, 3, 7.5, 8.5, 39, 8.5, "pole")
+        box(7, 22, 7, 9, 23.5, 9, "pole")                    // runner on the pole
+        // canopy: four panels sloping down from the top, striped green/white
+        val o = Vec3(8.0, 38.0, 8.0)
+        box(-4, 37, -4, 20, 38, 8, "green", rot = Axis.X to -22.5, origin = o)   // front
+        box(-4, 37, 8, 20, 38, 20, "white", rot = Axis.X to 22.5, origin = o)    // back
+        box(8, 37.25, -3, 20, 38.25, 19, "green", rot = Axis.Z to -22.5, origin = o)   // +x side
+        box(-4, 37.25, -3, 8, 38.25, 19, "white", rot = Axis.Z to 22.5, origin = o)    // −x side
+        box(7, 38, 7, 9, 40, 9, "tip")
     }
 
     val all = listOf(streetlamp, waxCandle, trashCan, mailBox, weaponStand, blackBoard, flowerPot, cactusPlant, sunshade)

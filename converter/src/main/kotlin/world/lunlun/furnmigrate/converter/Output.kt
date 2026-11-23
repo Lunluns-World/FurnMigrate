@@ -15,6 +15,21 @@ import world.lunlun.furnmigrate.common.Vec3
 import java.io.File
 import kotlin.math.max
 
+/**
+ * Oraxen config syntax to write. 1.221.0 renamed `itemname` → `name`, wants barriers as "x,y,z" strings,
+ * reads the placed look from `mechanics.furniture.appearance` and spells recipe keys with hyphens
+ * (ItemMigrator / FurnitureConfigMigration / RecipeMigration in 1.221.0). It still migrates the old syntax on
+ * load, but rewrites the file and leaves backups, so write the syntax of the version on the servers.
+ */
+enum class OraxenFormat(val label: String) {
+    V1_220("1.220"), V1_221("1.221");
+
+    companion object {
+        fun parse(s: String): OraxenFormat = entries.firstOrNull { s == it.label || s.startsWith(it.label + ".") }
+            ?: throw IllegalArgumentException("unknown Oraxen version '$s' (use 1.220 or 1.221)")
+    }
+}
+
 object Output {
     private val gson = GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create()
 
@@ -22,7 +37,8 @@ object Output {
     private fun arr(vararg d: Double) = JsonArray().apply { d.forEach { add(r(it)) } }
     private fun arr(v: Vec3) = arr(v.x, v.y, v.z)
 
-    fun modelPath(id: String) = "dice/" + id.removePrefix("dice_")
+    /** `dice_chair` → `dice/chair`; new furniture `lun_fridge` → `furniture/fridge`. */
+    fun modelPath(id: String) = if (id.startsWith("dice_")) "dice/" + id.removePrefix("dice_") else "furniture/" + id.removePrefix("lun_")
 
     fun modelJson(res: StyleResult): String = modelJson(res.elements, res.textures)
 
@@ -101,7 +117,8 @@ object Output {
         return Regex("[&§]([0-9a-fk-or])", RegexOption.IGNORE_CASE).replace(s) { m -> codes[m.groupValues[1].lowercase()[0]]?.let { "<$it>" } ?: "" }
     }
 
-    fun itemConfig(res: StyleResult, namespace: String): Map<String, Any> {
+    fun itemConfig(res: StyleResult, namespace: String, format: OraxenFormat = OraxenFormat.V1_220): Map<String, Any> {
+        val pack = linkedMapOf<String, Any>("generate_model" to false, "model" to "$namespace:${modelPath(res.oraxenId)}")
         val furniture = linkedMapOf<String, Any>(
             "type" to "DISPLAY_ENTITY",
             // HEAD, not NONE: Oraxen lowers barriers and seats by 0.5 × scale for NONE + scale
@@ -112,18 +129,22 @@ object Output {
                     put("scale", linkedMapOf("x" to s, "y" to s, "z" to s))
                 }
             },
-            "limited_placing" to linkedMapOf("floor" to true, "wall" to false, "roof" to false),
+            "limited_placing" to linkedMapOf("floor" to res.placing.floor, "wall" to res.placing.wall, "roof" to res.placing.roof),
         )
-        if (res.barriers.isNotEmpty()) furniture["barriers"] = res.barriers.map { linkedMapOf("x" to it.x, "y" to it.y, "z" to it.z) }
+        if (res.barriers.isNotEmpty()) furniture["barriers"] = when (format) {
+            OraxenFormat.V1_220 -> res.barriers.map { linkedMapOf("x" to it.x, "y" to it.y, "z" to it.z) }
+            OraxenFormat.V1_221 -> res.barriers.map { "${it.x},${it.y},${it.z}" }
+        }
         res.hitbox?.let { furniture["hitboxes"] = listOf(it) }
         if (res.seats.isNotEmpty()) furniture["seats"] = res.seats
         if (res.lights.isNotEmpty()) furniture["lights"] = res.lights
         res.storage?.let { furniture["storage"] = linkedMapOf("type" to "STORAGE", "rows" to it.rows, "title" to it.title) }
         furniture["drop"] = linkedMapOf("silktouch" to false, "loots" to listOf(linkedMapOf("oraxen_item" to res.oraxenId, "probability" to 1.0)))
+        if (format == OraxenFormat.V1_221) furniture["appearance"] = LinkedHashMap(pack)
         return linkedMapOf(
-            "itemname" to "<!i>" + legacyToMini(res.model.displayName),
+            (if (format == OraxenFormat.V1_221) "name" else "itemname") to "<!i>" + legacyToMini(res.model.displayName),
             "material" to "PAPER",
-            "pack" to linkedMapOf("generate_model" to false, "model" to "$namespace:${modelPath(res.oraxenId)}"),
+            "pack" to pack,
             "mechanics" to linkedMapOf("furniture" to furniture),
         )
     }
@@ -133,13 +154,12 @@ object Output {
      * [notOutput] = styles left out (no design / never placed), listed in the report only.
      */
     fun writeAll(outDir: File, namespace: String, results: List<StyleResult>, rig: Rig,
-                 retired: Map<String, String> = emptyMap(), notOutput: List<String> = emptyList()) {
+                 retired: Map<String, String> = emptyMap(), notOutput: List<String> = emptyList(),
+                 format: OraxenFormat = OraxenFormat.V1_220) {
         val items = linkedMapOf<String, Any>()
         for (res in results) {
-            val f = File(outDir, "oraxen/pack/assets/$namespace/models/${modelPath(res.oraxenId)}.json")
-            f.parentFile.mkdirs()
-            f.writeText(modelJson(res))
-            items[res.oraxenId] = itemConfig(res, namespace)
+            writeModel(outDir, namespace, res)
+            items[res.oraxenId] = itemConfig(res, namespace, format)
             if (res.designed) {
                 // Old geometry for side-by-side comparison only; not for the server.
                 val ref = File(outDir, "reference/${modelPath(res.oraxenId)}.json")
@@ -147,9 +167,7 @@ object Output {
                 ref.writeText(modelJson(res.referenceElements, res.referenceTextures))
             }
         }
-        val itemsFile = File(outDir, "oraxen/items/dicefurniture.yml").apply { parentFile.mkdirs() }
-        val opts = DumperOptions().apply { defaultFlowStyle = DumperOptions.FlowStyle.BLOCK; isAllowUnicode = true; indent = 2; width = 200 }
-        itemsFile.writeText("# Generated by FurnMigrate converter. Do not edit by hand; re-run the converter.\n" + Yaml(opts).dump(items))
+        writeItems(File(outDir, "oraxen/items/dicefurniture.yml"), items)
 
         val mapping = Mapping(namespace, results.associate { res ->
             res.model.style to MappingEntry(
@@ -166,5 +184,27 @@ object Output {
         })
         File(outDir, "mapping.yml").bufferedWriter().use { MappingIO.write(withRetired, it) }
         File(outDir, "report.md").writeText(Report.render(results, rig, retired, notOutput))
+    }
+
+    private fun writeModel(outDir: File, namespace: String, res: StyleResult) {
+        val f = File(outDir, "oraxen/pack/assets/$namespace/models/${modelPath(res.oraxenId)}.json")
+        f.parentFile.mkdirs()
+        f.writeText(modelJson(res))
+    }
+
+    private fun writeItems(file: File, items: Map<String, Any>) {
+        file.parentFile.mkdirs()
+        val opts = DumperOptions().apply { defaultFlowStyle = DumperOptions.FlowStyle.BLOCK; isAllowUnicode = true; indent = 2; width = 200 }
+        file.writeText("# Generated by FurnMigrate converter. Do not edit by hand; re-run the converter.\n" + Yaml(opts).dump(items))
+    }
+
+    /** New furniture with no DiceFurniture original: models + `oraxen/items/lunworld-furniture.yml`, not in mapping.yml. */
+    fun writeNew(outDir: File, namespace: String, results: List<StyleResult>, format: OraxenFormat = OraxenFormat.V1_220) {
+        val items = linkedMapOf<String, Any>()
+        for (res in results) {
+            writeModel(outDir, namespace, res)
+            items[res.oraxenId] = itemConfig(res, namespace, format)
+        }
+        writeItems(File(outDir, "oraxen/items/lunworld-furniture.yml"), items)
     }
 }

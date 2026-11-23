@@ -55,6 +55,8 @@ class TestKitPlugin : JavaPlugin() {
             "count" -> sender.sendMessage("FL objects: ${liveObjects().size}")
             "audit" -> loadThen(sender, auditCells()) { audit(sender) }
             "recipes" -> recipes(sender)
+            // Oraxen wall placing needs the clicked block to be solid (LimitedPlacing#isNotPlacableOn)
+            "solid" -> sender.sendMessage("ftk solid: " + args.drop(1).joinToString { m -> "$m=${Material.matchMaterial(m)?.isSolid}" })
             else -> sender.sendMessage("ftk spawn | verify | count")
         }
         return true
@@ -350,14 +352,15 @@ class TestKitPlugin : JavaPlugin() {
         val world = Bukkit.getWorlds().first()
         val out = mutableListOf<String>()
         var ok = 0
-        val keys = cfg.getKeys(false).filter { it.startsWith("dice_") }
+        val keys = cfg.getKeys(false).filter { it.startsWith("dice_") || it.startsWith("lun_") }
         for (key in keys) {
             val sec = cfg.getConfigurationSection(key)!!
-            val want = sec.getString("result.oraxen_item")
+            // Oraxen 1.221 spells the keys with hyphens
+            val want = sec.getString("result.oraxen_item") ?: sec.getString("result.oraxen-item")
             val shape = sec.getStringList("shape")
             val matrix = Array(9) { ItemStack(Material.AIR) }
             for ((y, row) in shape.withIndex()) for ((x, ch) in row.withIndex()) {
-                val m = sec.getString("ingredients.$ch.minecraft_type") ?: continue
+                val m = sec.getString("ingredients.$ch.minecraft_type") ?: sec.getString("ingredients.$ch.minecraft-type") ?: continue
                 matrix[y * 3 + x] = ItemStack(Material.matchMaterial(m) ?: error("$key: unknown material $m"))
             }
             val recipe = Bukkit.getCraftingRecipe(matrix, world)

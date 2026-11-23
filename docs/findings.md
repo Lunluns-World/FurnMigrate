@@ -312,3 +312,24 @@ FurnitureMechanic OraxenFurniture.getFurnitureMechanic(String itemID);          
   - 已確認救回的鐵鋤保留了效率附魔。如果有物品連 DataFixer 也讀不了，**整個傢俱都不動**，原始 NBT 寫進 journal，記為 SKIPPED，交給管理員處理。
 - **花盆裡的植物**：DiceFurniture 的 FlowerPot 是真的花盆方塊，玩家可以在裡面種東西（`potted_*`）。移除舊傢俱時這格會變成空氣，所以 migrator 會把植物當成玩家物品掉在旁邊（真實資料裡有 2 個：cherry_sapling、blue_orchid）。
 - **世界和模型對不上的情況**：有 2 盞路燈的方塊在世界裡早就是空氣（可能早就被拆壞了）。照樣正常遷移。
+
+## 13. Oraxen 1.221.0 ✅（原始碼 tag `v1.221.0`，比對 `v1.220.1`）
+
+- **設定寫法改了，舊寫法會在載入時自動轉換並改寫檔案（留下備份）**：
+  - 物品名稱 `itemname`／`displayname` → `name`（`items/ItemMigrator.java#migrateNames`）。
+  - 屏障只接受 `"x,y,z"` 字串（`FurnitureMechanic.java#parseBarriers`）；舊的 `{x, y, z}` 由 `configs/FurnitureConfigMigration.java` 轉換。
+  - 放置後的外觀改讀 `mechanics.furniture.appearance`，轉換時從 `pack` 複製一份（`FurnitureConfigMigration#migrateAppearances`）。
+  - 合成表的 key：`oraxen_item` → `oraxen-item`、`minecraft_type` → `minecraft-type`（`recipes/RecipeMigration.java`，改寫時留下 `.bak`）。掉落物的 `loots.oraxen_item` 沒有改（`utils/drops/Loot.java:97`）。
+  - converter 的 `--oraxen 1.221` 直接輸出新寫法。
+- **合成表檔名**：`RecipesManager#registerRecipeByType` 遇到不認得的檔名會丟例外，整個重新載入失敗。所以只能附加到 `shaped.yml`。`_` 會被換成空格（`ShapedLoader.java`），用不到的字母現在會報錯。
+- **Maven**：`oraxen-1.221.0.jar` 是 shade 過的，另外多了 `-plain.jar`，Gradle 的 module metadata 會選到 plain 版（沒有 `io.th0rgal.oraxen.shaded...`）。所以要用 `io.th0rgal:oraxen:1.221.0@jar`。用它編譯 migrator 和 testkit 都成功，用到的 API（`place`、`getBarriers`、`getLocations`、PDC key、`StorageMechanic.STORAGE_KEY`）沒有變。
+- 支援 Paper 1.20.1～26.3（README），所以 1.21.8 和 26.2 都能用。
+- 新功能：ghast／shulker 形式的實體 hitbox（`FurnitureMechanic#isSolidHitbox`）。目前沒有用到，桌子還是用 barrier。
+
+## 14. 牆上、天花板的傢俱 ✅（`FurnitureMechanic.java`、`FurnitureListener.java`、`LimitedPlacing.java`，1.220.1）
+
+- 放置位置是被點的方塊旁邊那一格（`FurnitureListener#getTarget`），朝向一律取玩家視線的 yaw，`restricted_rotation` 預設 `STRICT`（4 個方向，`getRotation`）。
+- `display_transform: HEAD` 不是 `FIXED`／`NONE`，所以牆上和天花板的傢俱不會被旋轉或位移（`correctedSpawnLocation`、`setItemDisplayData`）：模型直接畫在那一格的後面（+z）或頂部（y 16）。
+- 牆上：被點的方塊要 `isSolid()`，而且點的是側面（`LimitedPlacing#isNotPlacableOn`）。玻璃、各色玻璃片、鐵柵欄、柵欄在 1.21.8 都是 `isSolid() == true`（本機用 `ftk solid` 確認），所以窗簾可以掛在玻璃和玻璃片上。
+- 天花板：點方塊的底面，或上方那格是實心方塊。
+- 桌子：barrier 方塊本身沒有座位或儲物時 `isInteractable()` 是 false（`BlockHelpers#isInteractable`），所以不用蹲下就能把方塊或其他傢俱放在桌面上。冰箱有儲物，要蹲下才能在上面放東西。

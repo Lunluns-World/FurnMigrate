@@ -7,7 +7,7 @@
 | 模組 | 用途 |
 |---|---|
 | `common` | 對照表（`mapping.yml`）的讀寫，以及所有純邏輯：座標旋轉、遷移計畫、玩家物品判斷、journal 復原（含單元測試） |
-| `converter` | 離線工具：從 DiceFurniture 模型產生 Oraxen 傢俱設定、模型 JSON、對照表和報告。模型是重新手工設計的，大小和原本差不多（`converter/.../designs/`） |
+| `converter` | 離線工具：從 DiceFurniture 模型產生 Oraxen 傢俱設定、模型 JSON、對照表和報告。模型是重新手工設計的，佔的格子和原本一樣（`converter/.../designs/`）。另外也產生遷移之後新增的傢俱（`designs/NewDesigns.kt`） |
 | `migrator` | Paper 外掛 **FurnMigrate**：在伺服器上把已放置的舊傢俱一個一個換成 Oraxen 傢俱 |
 | `testkit` | ⚠️ **只在本機測試用**的外掛 FurnTestKit（`ftk spawn` / `verify` / `audit`）。**不要裝到任何伺服器上** |
 
@@ -31,6 +31,7 @@
 | `FurnitureLib/models/` | 從伺服器的 `plugins/FurnitureLib/models/` 複製（converter 用）。裡面有玩家 UUID，而且是 DiceFurniture 的內容，所以不放進 git |
 | `vanilla/client-1.21.8.jar` | Minecraft 1.21.8 客戶端 jar（converter 讀原版貼圖用） |
 | `dumps/` | 資料庫 dump（研究和本機測試用） |
+| `custom-textures/` | 伺服器自己的貼圖（Logo 傢俱用的 `furniture/logo.png`），做法見下面「新傢俱」 |
 
 ```bash
 ./gradlew build
@@ -53,9 +54,54 @@
 | `out/oraxen/pack/assets/lunworld/` | 模型（namespace `lunworld`） |
 | `out/mapping.yml` | 對照表，放到 `plugins/FurnMigrate/mapping.yml` |
 | `out/oraxen/recipes/dicefurniture-shaped.yml` | 合成表，要附加到 Oraxen 的 `recipes/shaped.yml` |
+| `out/oraxen/items/lunworld-furniture.yml` | 新傢俱（沒有 DiceFurniture 原型，不在 `mapping.yml` 裡） |
+| `out/oraxen/recipes/lunworld-furniture-shaped.yml` | 新傢俱的合成表，同樣附加到 `recipes/shaped.yml` |
 | `out/report.md` | 每個樣式的轉換結果和取捨 |
 
-會讀取 `vanilla/client-1.21.8.jar` 的原版貼圖和模型（只在本機用，不會 commit）。
+會讀取 `vanilla/client-1.21.8.jar` 的原版貼圖和模型（只在本機用，不會 commit）。設計用到的原版貼圖如果不存在，converter 會直接報錯（遊戲裡會變成紫黑格子）。
+
+選項：
+
+| 選項 | 說明 |
+|---|---|
+| `--oraxen 1.220`（預設）／`--oraxen 1.221` | 輸出哪個 Oraxen 版本的設定寫法，要和伺服器上的版本一致（見下面「Oraxen 1.221」） |
+| `--textures <資料夾>` | 伺服器自己的貼圖，預設 `custom-textures/`。缺貼圖的新傢俱會被略過，並在輸出裡列出 |
+
+### 新傢俱
+
+遷移之後另外新增、沒有 DiceFurniture 原型的傢俱，ID 是 `lun_<名稱>`，模型在 `lunworld:furniture/<名稱>`：
+
+| ID | 名稱 | 放置 | 功能 |
+|---|---|---|---|
+| `lun_fridge` | 冰箱 | 地面 | 2 格高的屏障，3 排儲物 |
+| `lun_ceiling_fan` | 吊扇 | 天花板 | 亮度 14 |
+| `lun_computer` | 電腦 | 地面（可以放在桌上） | 裝飾 |
+| `lun_curtain` | 窗簾 | 地面、牆上（包含玻璃和玻璃片） | 2 格高，不擋路 |
+| `lun_air_conditioner` | 冷氣 | 牆上 | 裝飾 |
+| `lun_wall_tv` | 壁掛電視 | 牆上 | 2 格寬 |
+| `lun_toilet` | 馬桶 | 地面 | 可以坐 |
+| `lun_sink` | 洗手台 | 地面 | 1 格屏障 |
+| `lun_bathtub` | 浴缸 | 地面 | 2 格長，2 個座位 |
+| `lun_logo` | 侖侖伺服器 Logo | 地面、牆上 | 2×2 招牌 |
+
+牆上和天花板的傢俱放在牆前面（天花板下面）那一格，方向跟著玩家面對的方向。合成表在 `out/report.md` 的「合成表」一節。
+
+Logo 的貼圖不放進 git。用伺服器 Logo 的 SVG 產生（128×128，深色底）：
+
+```bash
+mkdir -p custom-textures/furniture
+rsvg-convert -w 112 -h 112 Logo.svg -o /tmp/logo112.png
+magick -size 128x128 xc:'#3a3650' /tmp/logo112.png -gravity center -composite custom-textures/furniture/logo.png
+```
+
+### Oraxen 1.221
+
+Oraxen 1.221.0 改了設定的寫法（`itemname` → `name`、屏障改成 `"x,y,z"` 字串、傢俱外觀移到 `mechanics.furniture.appearance`、合成表的 key 改成 `oraxen-item`／`minecraft-type`），也重新整理了 `settings.yml`。舊寫法它在載入時會自動轉換，但會**改寫檔案並留下備份**。所以：
+
+- 伺服器升級到 1.221 之後，用 `--oraxen 1.221` 重新產生再上傳，每台伺服器的檔案才會維持一致。
+- 1.221 的 `recipes/` 資料夾裡**只能有它認得的檔名**（`shaped.yml` 等），多放一個別的 `.yml` 整個合成表重新載入會失敗。
+- 1.221 在 Maven 上的預設 jar 沒有 shade，FurnMigrate 用到 `io.th0rgal.oraxen.shaded...` 的類別，所以編譯時要寫成 `compileOnly("io.th0rgal:oraxen:1.221.0@jar")`。
+- FurnMigrate 用到的 API 在 1.221.0 都沒有變（已經用 1.221.0 編譯過）。細節見 [docs/findings.md](docs/findings.md) §13。
 
 ## migrator 怎麼保證不出事
 
@@ -95,8 +141,8 @@
 ### B. Oraxen 設定（共用同一份資源包的每台伺服器都要做，而且**完全一樣**，包括沒有 DiceFurniture 的伺服器）
 
 - [ ] `plugins/Oraxen/mechanics.yml` 裡 `furniture.enabled: true`。這個值是 `false` 時 Oraxen 不會有任何警告，傢俱只是放不下去。
-- [ ] 複製 `out/oraxen/items/dicefurniture.yml` → `plugins/Oraxen/items/`。
-- [ ] 複製 `out/oraxen/pack/assets/lunworld/` → `plugins/Oraxen/pack/assets/lunworld/`。
+- [ ] 複製 `out/oraxen/items/dicefurniture.yml`、`lunworld-furniture.yml` → `plugins/Oraxen/items/`。
+- [ ] 複製 `out/oraxen/pack/assets/lunworld/`（模型和貼圖）→ `plugins/Oraxen/pack/assets/lunworld/`。
 - [ ] 如果有多台伺服器共用資源包，Oraxen 的混淆要維持**關閉**（開啟的話，每台的資源包和物品會不一樣）。
 - [ ] 確認每台的 Oraxen 檔案完全相同，每台算出來的值要一樣：
 
@@ -104,7 +150,7 @@
 cd plugins/Oraxen && find items pack/assets pack/uploads mechanics.yml -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum
 ```
 
-- [ ] **合成表**：把 `out/oraxen/recipes/dicefurniture-shaped.yml`（上傳包裡的 `4-dicefurniture-recipes.yml`）的內容**附加到** `plugins/Oraxen/recipes/shaped.yml` 的最後面。不要覆蓋原檔，也不要另外放一個檔案：Oraxen 只讀固定的檔名（`RecipesManager.java:166`）。所有合成表的 key 都以 `dice_` 開頭，不會和既有的撞名。
+- [ ] **合成表**：把 `out/oraxen/recipes/dicefurniture-shaped.yml`（上傳包裡的 `4-dicefurniture-recipes.yml`）的內容**附加到** `plugins/Oraxen/recipes/shaped.yml` 的最後面。不要覆蓋原檔，也不要另外放一個檔案：Oraxen 只讀固定的檔名（`RecipesManager.java:166`）。所有合成表的 key 都以 `dice_` 開頭，不會和既有的撞名。新傢俱的 `out/oraxen/recipes/lunworld-furniture-shaped.yml`（上傳包裡的 `5-new-furniture-recipes.yml`）也一樣附加上去，key 都以 `lun_` 開頭。已經附加過 `dice_` 那份的話，只要再附加新的這份。
   - FurnitureLib 還在的時候，它自己同樣排列的合成表會先被選中，做出來的還是舊的生怪蛋。移除 FurnitureLib 之後才會做出 Oraxen 傢俱（本機測過：26 個全部正確，沒有和原版或既有的合成表衝突）。
 - [ ] `/oraxen reload all`，然後用 `/oraxen give <自己> dice_chair` 拿一張椅子放放看，確認放得下去、有模型、拆得掉。
 
@@ -118,6 +164,7 @@ cd plugins/Oraxen && find items pack/assets pack/uploads mechanics.yml -type f -
 4. [ ] `/furnmigrate scan`：數量要和資料庫裡的一致，沒有「Oraxen 裡找不到」的錯誤。
 5. [ ] `/furnmigrate dry-run`，打開 `plugins/FurnMigrate/reports/dryrun-*.txt`：
    - 用真實資料測試時是 **MANUAL 0、SKIP 0**。如果有 MANUAL，先看原因（通常是新傢俱的位置被方塊擋住）。
+   - 桌子、課桌、大桌子改成整格屏障之後，原本桌子底下或旁邊有方塊（地毯、半磚之類）的位置會變成 MANUAL：用本機的生存服複本測試是 266 個裡有 3 個。可以先移開那些方塊再跑，或跑完之後手動放回桌子。
    - `rescued=` 是從資料庫救回的物品，`keep=` 是保留的真實方塊數量。
 6. [ ] `/furnmigrate run`，30 秒內再輸入一次。可以用 `/furnmigrate status` 看進度，幾百個傢俱大約一分鐘就跑完。
 7. [ ] `/furnmigrate manual`：有需要手動處理的就逐一去看。物品可以用 `/furnmigrate dropitems <id>` 掉回原地。
@@ -142,12 +189,13 @@ cd plugins/Oraxen && find items pack/assets pack/uploads mechanics.yml -type f -
 
 | 項目 | 說明 |
 |---|---|
-| 新模型 | 每個樣式都是重新設計的模型，大小和原本差不多，但不是一模一樣（每個樣式的「大小差距」見 `out/report.md`） |
+| 新模型 | 每個樣式都是重新設計的模型，佔的格子數量和原本一樣，但外觀不同（每個樣式的「大小差距」見 `out/report.md`） |
+| 桌子、課桌、大桌子 | 整格屏障，桌面剛好一格高，上面可以放方塊和其他傢俱，也不能穿過。大桌子是 3×3，放置和拆除都對準中間那格。**已經遷移好的**桌子不會自己更新，還是原本的 hitbox；之後新放的才是屏障 |
 | 退役的樣式 | **Barrels** 只留下鍋釜，**Fence** 只留下柵欄，**Campfire1** 變成原版營火，這三種不再是 Oraxen 傢俱 |
 | 帳篷 | 工作台、床、箱子是真的方塊，遷移時會保留下來；但玩家之後**自己新放的帳篷**不附帶這些方塊（合成表沿用原本的，仍然要用到工作台和床）。放置和拆除都要對準中間的木棒 |
 | 合成表 | 沿用 DiceFurniture 原本的 26 個合成表。SnowGolem 原本就停用，所以不能合成；退役的 3 種不再有合成表 |
 | 武器架 | 改成 1 排的儲物 GUI（右鍵打開），武器**不會顯示**在架子上 |
-| 桌子、黑板、大桌子 | 不能再放東西展示；遷移時桌上原本的東西會掉在旁邊 |
+| 桌子、黑板、大桌子 | 原本「放在桌上展示」的物品欄沒有了；遷移時桌上原本的東西會掉在旁邊 |
 | 垃圾桶 | 1 排的儲物 GUI |
 | 路燈 | 一直亮著（亮度 15）。原本的開關燈要靠 LightAPI，Oraxen 沒有對應功能 |
 | 沙發 | 不保留染色，一律是白色 |

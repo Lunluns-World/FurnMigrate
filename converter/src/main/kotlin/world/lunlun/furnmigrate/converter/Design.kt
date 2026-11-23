@@ -35,7 +35,22 @@ class Design(
     val anchor: IVec3 = IVec3(0, 0, 0),
     /** Item name to use instead of the model's displayName (legacy `&` colours), e.g. to fix a typo. */
     val displayName: String? = null,
+    /** Oraxen barrier offsets (Oraxen yaw-0 frame, like seats and lights); null = keep the original barriers. */
+    val barriers: List<IVec3>? = null,
+    /** Where players may place it; null = keep the original (floor only). */
+    val placing: Placing? = null,
+    /** Interaction hitbox "x,y,z w,h" instead of the one computed from the geometry (only without barriers). */
+    val hitbox: String? = null,
 )
+
+/** Oraxen `limited_placing`: floor, wall and/or ceiling. */
+data class Placing(val floor: Boolean = true, val wall: Boolean = false, val roof: Boolean = false) {
+    init { require(floor || wall || roof) { "furniture must be placeable somewhere" } }
+
+    companion object {
+        val FLOOR = Placing()
+    }
+}
 
 /** Oraxen `mechanics.furniture.storage` (type STORAGE). */
 data class StorageSpec(val rows: Int, val title: String)
@@ -49,6 +64,9 @@ class DesignBuilder(private val style: String) {
     private val handled = linkedMapOf<String, String>()
     private var anchor = IVec3(0, 0, 0)
     private var displayName: String? = null
+    private var barriers: List<IVec3>? = null
+    private var placing: Placing? = null
+    private var hitbox: String? = null
 
     /** Registers a texture under a short key, e.g. `tex("wood", "block/oak_planks")`. */
     fun tex(key: String, id: String) {
@@ -124,7 +142,24 @@ class DesignBuilder(private val style: String) {
     /** Item name instead of the model's displayName (legacy `&` colours like the models use). */
     fun displayName(name: String) { displayName = name }
 
-    fun build() = Design(style, textures, elements.toList(), seats, lights, storage, handled, anchor, displayName)
+    /**
+     * Solid barrier blocks instead of the original ones, as Oraxen offsets (x = −design cell x, z = design
+     * cell z: the design cell x 16..32 is Oraxen x −1, the cell in front, z −16..0, is Oraxen z −1).
+     * Players can stand on them and place blocks on top; there is no interaction hitbox then.
+     */
+    fun barriers(vararg cells: IVec3) { barriers = cells.toList() }
+
+    /** Every cell of the design footprint [x0]..[x1] × [z0]..[z1] (design cells, as above) at heights [y0]..[y1]. */
+    fun barrierGrid(x0: Int, x1: Int, z0: Int, z1: Int, y0: Int = 0, y1: Int = 0) {
+        barriers = (y0..y1).flatMap { y -> (x0..x1).flatMap { x -> (z0..z1).map { z -> IVec3(-x, y, z) } } }
+    }
+
+    fun placing(floor: Boolean = true, wall: Boolean = false, roof: Boolean = false) { placing = Placing(floor, wall, roof) }
+
+    /** Interaction hitbox (centred square [width] × [height] blocks) instead of the computed one. */
+    fun hitbox(width: Double, height: Double) { hitbox = "0,0,0 ${fmt(width)},${fmt(height)}" }
+
+    fun build() = Design(style, textures, elements.toList(), seats, lights, storage, handled, anchor, displayName, barriers, placing, hitbox)
 }
 
 fun design(style: String, block: DesignBuilder.() -> Unit): Design = DesignBuilder(style).apply(block).build()
@@ -197,7 +232,7 @@ object DesignApplier {
         val o = Facing.canonicalToOraxenBlock(a)   // the same anchor in Oraxen offsets
         val seats = (design.seats ?: res.seats).map { shiftOffset(it, o) }
         val lights = (design.lights ?: res.lights).map { shiftOffset(it, o) }
-        val barriers = res.barriers.map { IVec3(it.x - o.x, it.y - o.y, it.z - o.z) }
+        val barriers = (design.barriers ?: res.barriers).map { IVec3(it.x - o.x, it.y - o.y, it.z - o.z) }
         val (elements, scale) = fitToModelBounds(raw)
         val warnings = res.warnings.filterNot { it.startsWith("model is larger") }.toMutableList()
         if (scale != 1.0) warnings += "design is larger than 3×3×3 blocks; shrunk ×${fmt(1.0 / scale)} and scaled back by the display"
@@ -221,7 +256,7 @@ object DesignApplier {
             seats = seats,
             lights = lights,
             hitbox = if (barriers.isEmpty()) avoidKeepBlocks(
-                encloseSeats(hitboxFor(raw), seats),
+                encloseSeats(design.hitbox ?: hitboxFor(raw), seats),
                 res.keepBlocks.map { k -> Facing.canonicalToOraxenBlock(IVec3(k.cell.x - a.x, k.cell.y - a.y, k.cell.z - a.z)) },
             ) else null,
             anchor = a,
@@ -229,6 +264,7 @@ object DesignApplier {
             warnings = warnings,
             designed = true,
             storage = design.storage,
+            placing = design.placing ?: res.placing,
             referenceElements = reference,
             referenceTextures = res.textures,
         )
@@ -242,4 +278,23 @@ internal fun shiftOffset(s: String, o: IVec3): String {
     val (x, y, z) = parts[0].split(',').map { it.toDouble() }
     val pos = "${fmt(x - o.x)},${fmt(y - o.y)},${fmt(z - o.z)}"
     return if (parts.size > 1) "$pos ${parts[1]}" else pos
+}
+
+/**
+ * Furniture made for the server with no DiceFurniture original: only the design (which must set
+ * displayName) and its Oraxen id. Nothing is migrated to it, so it is not in mapping.yml.
+ */
+object NewFurniture {
+    fun result(oraxenId: String, design: Design): StyleResult {
+        val name = requireNotNull(design.displayName) { "${design.style}: new furniture needs displayName(...)" }
+        require(design.anchor == IVec3(0, 0, 0)) { "${design.style}: anchors only make sense for migrated furniture" }
+        val base = StyleResult(
+            model = DModel(design.style, design.style, design.style, name, "TOP", emptyList(), emptyList(), false),
+            oraxenId = oraxenId, elements = emptyList(), textures = emptyMap(), barriers = emptyList(),
+            seats = emptyList(), lights = emptyList(), hitbox = null, displayScale = 1.0, converted = emptyList(),
+            skipped = emptyList(), angleErrors = emptyList(), unmatchedFunctions = emptyList(), keepBlocks = emptyList(),
+            warnings = emptyList(),
+        )
+        return DesignApplier.apply(base, design)
+    }
 }
