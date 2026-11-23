@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import world.lunlun.furnmigrate.common.IVec3
+import world.lunlun.furnmigrate.common.Vec3
 import world.lunlun.furnmigrate.converter.designs.Designs
 import world.lunlun.furnmigrate.converter.designs.NewDesigns
 
@@ -16,9 +17,9 @@ class NewFurnitureTest {
     private fun furniture(item: Map<String, Any>) = (item["mechanics"] as Map<String, Any>)["furniture"] as Map<String, Any>
 
     @Test
-    fun `the ten new pieces exist with names, models and recipes`() {
+    fun `the new pieces exist with names, models and recipes`() {
         assertEquals(
-            setOf("lun_fridge", "lun_ceiling_fan", "lun_computer", "lun_curtain", "lun_air_conditioner", "lun_toilet", "lun_sink", "lun_bathtub", "lun_wall_tv", "lun_logo"),
+            setOf("lun_fridge", "lun_ceiling_fan", "lun_computer", "lun_curtain", "lun_air_conditioner", "lun_toilet", "lun_sink", "lun_bathtub", "lun_wall_tv", "lun_logo", "lun_tv_cabinet"),
             results.keys,
         )
         for ((id, r) in results) {
@@ -79,9 +80,11 @@ class NewFurnitureTest {
             assertTrue(d.barriers!!.isNotEmpty(), style)
             assertEquals(16.0, d.elements.filter { it.to.y <= 16.0 }.maxOf { it.to.y }, style)
         }
-        // LargeTable: 3×3 under the whole top, centred on the furniture block after the anchor shift
+        // LargeTable: 3×3 under the whole top, from the old origin cell (no anchor, so tables migrated
+        // before the redesign still line up with their footprint)
         val large = DesignApplier.apply(emptyResult("LargeTable"), Designs.find("LargeTable")!!)
-        assertEquals((-1..1).flatMap { x -> (-1..1).map { z -> IVec3(x, 0, z) } }.toSet(), large.barriers.toSet())
+        assertEquals(IVec3(0, 0, 0), large.anchor)
+        assertEquals((0..2).flatMap { x -> (0..2).map { z -> IVec3(x, 0, z) } }.toSet(), large.barriers.toSet())
     }
 
     @Test
@@ -116,4 +119,31 @@ class NewFurnitureTest {
         skipped = emptyList(), angleErrors = emptyList(), unmatchedFunctions = emptyList(), keepBlocks = emptyList(),
         warnings = emptyList(),
     )
+
+    @Test
+    fun `tv cabinet is two solid cells with the top flush and storage`() {
+        val cab = NewFurniture.result("lun_tv_cabinet", NewDesigns.all.first { it.oraxenId == "lun_tv_cabinet" }.design)
+        assertEquals(setOf(IVec3(1, 0, 0), IVec3(0, 0, 0)), cab.barriers.toSet())
+        assertEquals(16.0, cab.elements.maxOf { it.to.y })
+        assertTrue(cab.storage != null)
+    }
+
+    @Test
+    fun `no model has flickering faces after separation`() {
+        val all = Designs.all.values.map { DesignApplier.apply(emptyResult(it.style), it) } +
+            NewDesigns.all.map { NewFurniture.result(it.oraxenId, it.design) }
+        for (r in all) assertEquals(emptyList<ZFight.Clash>(), ZFight.clashes(ZFight.separate(r.elements)), r.oraxenId)
+    }
+
+    @Test
+    fun `separation pushes the smaller face out`() {
+        val f = Face(listOf(0.0, 0.0, 1.0, 1.0), "#a", 0)
+        val faces = FaceDir.entries.associateWith { f }
+        val body = OutElement(Vec3(0.0, 8.0, 0.0), Vec3(16.0, 15.0, 16.0), null, faces, true)
+        val vent = OutElement(Vec3(2.0, 8.0, 0.0), Vec3(14.0, 8.5, 10.0), null, faces, true)
+        val out = ZFight.separate(listOf(body, vent))
+        assertEquals(body, out[0])
+        assertEquals(8.0 - ZFight.EPS, out[1].from.y, 1e-9)
+        assertEquals(0.0 - ZFight.EPS, out[1].from.z, 1e-9)
+    }
 }

@@ -183,6 +183,37 @@ object NewDesigns {
         hitbox(2.0, 0.7)
     }
 
+    private val tvCabinet = design("TVCabinet") {
+        displayName("&f電視櫃")
+        // Low cabinet 2 blocks wide (design x −16..16: this block and the one to the placer's right), top
+        // flush at one block so a TV or anything else stands on the barriers. Doors either side, an open
+        // shelf with a game console in the middle.
+        tex("wood", "block/dark_oak_planks")
+        tex("top", "block/stripped_dark_oak_log")
+        tex("door", "block/spruce_planks")
+        tex("inside", "block/black_concrete")
+        tex("metal", "block/iron_block")
+        tex("console", "block/gray_concrete")
+        tex("led", "block/lime_concrete")
+        for (x in listOf(-15.0, 13.5)) for (z in listOf(1.5, 14.0)) box(x, 0, z, x + 1.5, 2, z + 1.5, "wood")   // feet
+        box(-16, 2, 4, 16, 15, 16, "wood", faceTex = mapOf(FaceDir.NORTH to "inside"))   // carcass, dark inside the shelf
+        box(-16, 2, 1, -5, 15, 4, "wood")                       // door sections
+        box(5, 2, 1, 16, 15, 4, "wood")
+        box(-5, 2, 1, 5, 3, 4, "wood")                          // shelf bottom and middle board
+        box(-5, 8.5, 1, 5, 9.5, 4, "wood")
+        box(-16, 15, 0.5, 16, 16, 16, "top", uvTurn = setOf(FaceDir.UP, FaceDir.DOWN))   // top board
+        box(-15, 3, 0.5, -5.5, 14, 1, "door")                   // doors
+        box(5.5, 3, 0.5, 15, 14, 1, "door")
+        box(-7, 7.5, 0, -6.5, 10, 0.5, "metal")                 // handles
+        box(6.5, 7.5, 0, 7, 10, 0.5, "metal")
+        box(-3.5, 3, 1.75, 3.5, 4.5, 3.75, "console")           // console with a power light
+        box(2, 3.5, 1.6, 2.75, 4, 1.75, "led")
+        box(-2.5, 9.5, 2, 0.5, 13, 3, "door")                   // a few books on the upper shelf
+        box(0.75, 9.5, 2, 1.75, 12, 3, "inside")
+        barrierGrid(-1, 0, 0, 0)
+        storage(2, "電視櫃")
+    }
+
     private val wallTv = design("WallTV") {
         displayName("&f壁掛電視")
         // The same screen as the floor TV (2 blocks wide), hung flat against the wall at the back of the block.
@@ -225,6 +256,7 @@ object NewDesigns {
         NewPiece("lun_air_conditioner", airConditioner, listOf("AAA", "BCB"), mapOf('A' to "WHITE_CONCRETE", 'B' to "SNOWBALL", 'C' to "REDSTONE")),
         NewPiece("lun_toilet", toilet, listOf("A__", "ABA", "_A_"), mapOf('A' to "QUARTZ_BLOCK", 'B' to "WATER_BUCKET")),
         NewPiece("lun_sink", sink, listOf("_C_", "ABA", "_A_"), mapOf('A' to "QUARTZ_BLOCK", 'B' to "WATER_BUCKET", 'C' to "IRON_INGOT")),
+        NewPiece("lun_tv_cabinet", tvCabinet, listOf("AAA", "BCB"), mapOf('A' to "DARK_OAK_SLAB", 'B' to "DARK_OAK_PLANKS", 'C' to "CHEST")),
         NewPiece("lun_wall_tv", wallTv, listOf("AAA", "ABA", "_C_"), mapOf('A' to "GRAY_CONCRETE", 'B' to "GLASS_PANE", 'C' to "CHAIN")),
         NewPiece("lun_logo", logo, listOf("ABA", "BCB", "ABA"), mapOf('A' to "PINK_DYE", 'B' to "WHITE_WOOL", 'C' to "LIGHT_BLUE_DYE")),
         NewPiece("lun_bathtub", bathtub, listOf("ABA", "AAA"), mapOf('A' to "QUARTZ_BLOCK", 'B' to "WATER_BUCKET")),

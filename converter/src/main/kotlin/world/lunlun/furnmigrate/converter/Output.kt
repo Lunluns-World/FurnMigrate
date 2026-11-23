@@ -49,7 +49,8 @@ object Output {
      */
     fun modelTexturePath(id: String): String = id.removePrefix("minecraft:")
 
-    fun modelJson(elements: List<OutElement>, textures: Map<String, String>): String {
+    fun modelJson(input: List<OutElement>, textures: Map<String, String>): String {
+        val elements = ZFight.separate(input)
         val root = JsonObject()
         root.add("textures", JsonObject().apply {
             textures.forEach { (k, v) -> addProperty(k, modelTexturePath(v)) }

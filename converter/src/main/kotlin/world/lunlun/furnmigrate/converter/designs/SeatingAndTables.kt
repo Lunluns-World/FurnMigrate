@@ -95,8 +95,8 @@ object SeatingAndTables {
     private val largeTable = design("LargeTable") {
         handles("#TELLER", "盤子位置不能再放東西，純裝飾；原本放的東西由 migrator 掉在原地")
         // A full 3×3 table over the old footprint (design cells x −2..0, z 0..2), top flush with the
-        // 3×3 barrier layer, placed and broken at the middle cell.
-        anchor(1, 0, -1)
+        // 3×3 barrier layer. No anchor: pieces already migrated sit on the old origin (a corner cell),
+        // and an anchor would draw them one block off.
         tex("top", "block/spruce_planks")
         tex("edge", "block/stripped_spruce_log")
         tex("leg", "block/dark_oak_log")
